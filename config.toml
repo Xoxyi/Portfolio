@@ -20,3 +20,4 @@ theme = "catppuccin-mocha"
 
 [extra]
 katex = true
+highlighting_style = "base16-ocean-dark"
