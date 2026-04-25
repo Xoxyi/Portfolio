@@ -6,6 +6,10 @@ on:
     branches:
       - main   # change to master if that's your branch
 
+defaults:
+  run:
+    working-directory: .
+
 permissions:
   contents: read
   pages: write
