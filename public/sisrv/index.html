@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src-attr 'unsafe-inline'">
+
+    <title>SISRV – OpenGL Renderer | Xoxyi</title>
+
+    <link rel="preload" href="https://example.com/fonts/FiraCode-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+    <link rel="preload" href="https://example.com/fonts/FiraCode-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://example.com/css/style.css?h=1f36be641c14ef06f51a">
+    <script src="https://example.com/js/auto-close-popover-on-resize.js?h=db2a81e55d646d64083d" defer></script>
+    <script src="https://example.com/js/copy-code-to-clipboard.js?h=04619f49c23934b6c7bb" defer></script>
+    <link rel="stylesheet" href="https://example.com/css/katex.min.css?h=12f57c98be83129f0984">
+    <script src="https://example.com/js/katex.min.js?h=472e52bafbf0d134ffa9" defer></script>
+
+    <link rel="canonical" href="https://example.com/sisrv/">
+    
+    <meta name="description" content="A physically-based OpenGL renderer built from scratch, featuring deferred shading, PBR, IBL, shadow mapping, SSAO, and more.">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#211f1a">
+    <meta name="color-scheme" content="dark">
+
+    <meta property="og:title" content="SISRV – OpenGL Renderer">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://example.com/sisrv/">
+    <meta property="og:description" content="A physically-based OpenGL renderer built from scratch, featuring deferred shading, PBR, IBL, shadow mapping, SSAO, and more.">
+    <meta property="og:site_name" content="Xoxyi">
+    <meta property="og:updated_time" content="2026-04-25T15:00:51.990402700+02:00">
+    <meta property="article:published_time" content="2025-01-01T00:00:00+00:00">
+
+</head>
+
+<body class="layout-center" data-theme="terminus">
+    <header class="header">
+        <div class="header-container">
+            <span class="header-logo-container">
+                <a href="https://example.com">
+                    <span class="logo">Xoxyi</span>
+                </a>
+            </span>
+        </div>
+    </header>
+    <main id="main">
+        <article class="post content">
+            <header>
+                <h1 class="post-title">
+                    <a href="https://example.com/sisrv/">SISRV – OpenGL Renderer</a>
+                </h1>
+                <ul class="post-meta hidden">
+                    <li title="Published on 2025-01-01"><time datetime="2025-01-01">2025.01.01</time></li>
+                    <li role="separator" aria-hidden="true">::</li>
+                    <li title="1388 words"><time datetime="PT7M">7 min</time> read</li>
+                </ul>
+            </header>
+
+<h1 id="sisrv-opengl-renderer">SISRV – OpenGL Renderer</h1>
+<p><strong>Authors:</strong> Andrea Zito, Davide Camino<br />
+<strong>Affiliation:</strong> Department of Computer Science, University of Turin</p>
+<hr />
+<h2 id="introduction">Introduction</h2>
+<p>SISRV is a real-time renderer built from scratch in C++ on top of <strong>OpenGL 4.5</strong>. The goal was to implement a modern GPU rendering pipeline end-to-end — from loading a mesh with Assimp all the way to a final tone-mapped, bloom-composited image on screen.</p>
+<p>The implementation was developed by following the <a rel="external" href="https://learnopengl.com/">Learn OpenGL</a> tutorial, which provided the foundation for many of the techniques used. Some of the reference images are taken from there, while all the final renders shown here were produced by us.</p>
+<p><img src="/images/SISRV/rendering.png" alt="Final render: a brass vase and a lamp in a brick-walled room" /></p>
+<p>The implemented features include model loading, Phong/Blinn-Phong illumination, Physically Based Rendering (PBR), sky-box with environment/irradiance/specular maps, normal mapping, parallax mapping, shadow mapping, deferred shading, instancing, SSAO, and a full post-processing stack (HDR, gamma correction, bloom).</p>
+<hr />
+<h2 id="complete-rendering-pipeline">Complete Rendering Pipeline</h2>
+<p>The diagram below summarises every stage of the pipeline assembled for this project.</p>
+<p><img src="/images/SISRV/pipeline_completa.png" alt="Complete rendering pipeline diagram" /></p>
+<p>The pipeline is organised into four main phases: <strong>pre-computation</strong>, <strong>geometry</strong>, <strong>lighting</strong>, and <strong>post-processing</strong>. The sections below describe each stage in order of execution.</p>
+<hr />
+<h2 id="phase-0-environment-pre-computation">Phase 0 — Environment Pre-computation</h2>
+<p>Before the main render loop starts, an HDR equirectangular <code>.hdr</code> image is converted into a cubemap and baked into three look-up textures that the lighting pass will sample at runtime:</p>
+<ul>
+<li><strong>Irradiance map</strong> — a low-resolution cubemap that stores the pre-convolved diffuse integral over the hemisphere, providing environment-based ambient light for IBL.</li>
+<li><strong>Pre-filter map</strong> — a mip-mapped specular environment map whose levels encode progressively rougher reflections (first term of the split-sum approximation).</li>
+<li><strong>BRDF LUT</strong> — a 2D look-up table storing the scale and bias to the Fresnel term as a function of roughness and $N \cdot V$ (second term of the split-sum approximation).</li>
+</ul>
+<p><img src="/images/SISRV/ibl_brdf_lut.png" alt="BRDF look-up texture (roughness × NdotV)" /></p>
+<p>These textures are computed once at startup via dedicated shaders (<code>equirectangular_to_cubemap.fs</code>, <code>irradiance_convolution.fs</code>, <code>prefilter.fs</code>, <code>brdf.fs</code>) and remain constant for the entire session.</p>
+<hr />
+<h2 id="phase-1-shadow-depth-pass">Phase 1 — Shadow Depth Pass</h2>
+<p>For each point light in the scene a <strong>cube shadow map</strong> is rendered. The geometry is drawn six times (once per cubemap face) from the light's point of view, writing only depth values. During the lighting pass, each fragment queries the corresponding depth cube to determine whether it is in shadow.</p>
+<p>A small <strong>shadow bias</strong> is added to the stored depth to avoid self-shadowing ("shadow acne").</p>
+<p><img src="/images/SISRV/shadow_mapping_acne.png" alt="Shadow mapping: principle diagram and rendered result" /></p>
+<hr />
+<h2 id="phase-2-geometry-pass-deferred-shading">Phase 2 — Geometry Pass (Deferred Shading)</h2>
+<p>The scene is rendered once into a <strong>G-Buffer</strong> using deferred shading. Instead of computing lighting immediately, each fragment writes its shading data into a set of off-screen textures (Multiple Render Targets):</p>
+<table><thead><tr><th>Attachment</th><th>Content</th></tr></thead><tbody>
+<tr><td><code>gPosition</code></td><td>World-space position</td></tr>
+<tr><td><code>gNormal</code></td><td>World-space normal (after normal mapping)</td></tr>
+<tr><td><code>gAlbedo</code></td><td>Diffuse albedo + material type flag</td></tr>
+<tr><td><code>gSpecular</code></td><td>Specular / roughness / metalness</td></tr>
+</tbody></table>
+<p>This decouples geometry complexity from lighting complexity: adding more lights costs only one fullscreen quad pass each, not another full scene traversal.</p>
+<p><img src="/images/SISRV/deferred_shading.png" alt="Geometry pass → G-Buffer → Lighting pass" /></p>
+<p>The geometry shader supports two material workflows selected per-object:</p>
+<ul>
+<li><strong>Phong / Blinn-Phong</strong> (<code>obj_geometry.fs</code>) — classic ambient + diffuse + specular, with normal mapping and parallax mapping support.</li>
+<li><strong>PBR</strong> (<code>pbr_geometry.fs</code>) — albedo, metalness, and roughness textures fed into the Cook-Torrance BRDF.</li>
+</ul>
+<h3 id="normal-mapping">Normal Mapping</h3>
+<p>Surface normals stored in a tangent-space texture are transformed into world space via the <strong>TBN matrix</strong> (Tangent-Bitangent-Normal), giving per-pixel lighting detail without any extra geometry.</p>
+<p>$$\text{world} \_ \text{normal} = TBN \cdot \text{texture} \_ \text{normal}$$</p>
+<p><img src="/images/SISRV/normal_mapping.png" alt="Normal mapping TBN basis and result" /></p>
+<h3 id="parallax-mapping">Parallax Mapping</h3>
+<p>A height map offsets the UV coordinates along the view direction using ray-marching through depth layers, creating the illusion of geometric depth on flat surfaces.</p>
+<p><img src="/images/SISRV/parallax_mapping_parallax_occlusion_mapping.png" alt="Parallax mapping diagram and result on bricks" /></p>
+<hr />
+<h2 id="phase-3-ssao">Phase 3 — SSAO</h2>
+<p>Before lighting, <strong>Screen-Space Ambient Occlusion</strong> runs on the G-Buffer. 64 random samples are distributed in a hemisphere around each fragment; samples that fall behind nearby geometry contribute to a per-pixel occlusion factor. The raw SSAO buffer is then blurred to remove noise, and the result modulates the ambient term in the lighting pass.</p>
+<p><img src="/images/SISRV/ssao_overview.png" alt="SSAO: without vs. with, kernel diagram, and pipeline" /></p>
+<hr />
+<h2 id="phase-4-lighting-pass">Phase 4 — Lighting Pass</h2>
+<p>A fullscreen quad reads from the G-Buffer and accumulates light contributions from all point lights.</p>
+<h3 id="blinn-phong-lighting">Blinn-Phong lighting</h3>
+<p>The diffuse and specular terms are computed as:</p>
+<p>$$D = k_d(\hat{N} \cdot \hat{L}), \qquad S = k_s(\hat{H} \cdot \hat{N})^n$$</p>
+<p>The halfway vector $\hat{H}$ replaces the reflection vector $\hat{R}$ from classic Phong, producing a more physically plausible highlight shape.</p>
+<p><img src="/images/SISRV/advanced_lighting_comparrison.png" alt="Phong vs. Blinn-Phong comparison" /></p>
+<h3 id="pbr-cook-torrance-brdf">PBR — Cook-Torrance BRDF</h3>
+<p>The full reflectance equation is evaluated per light:</p>
+<p>$$L_o(p,\omega_o) = \int_\Omega \left(k_d \frac{c}{\pi} + \frac{DFG}{4(\omega_o \cdot n)(\omega_i \cdot n)}\right) L_i(p,\omega_i), n \cdot \omega_i , d\omega_i$$</p>
+<p>The specular term is composed of three functions:</p>
+<ul>
+<li><strong>D</strong> — GGX Normal Distribution Function, modelling the statistical orientation of microfacet normals.</li>
+<li><strong>F</strong> — Schlick Fresnel approximation, controlling the ratio of reflected vs. refracted light as a function of the view angle.</li>
+<li><strong>G</strong> — Smith Geometry function, accounting for microfacet self-shadowing and masking.</li>
+</ul>
+<p>$$D = \frac{\alpha^2}{\pi\left((n \cdot h)^2(\alpha^2 - 1) + 1\right)^2}, \qquad F \approx F_0 + (1 - F_0)(1 - h \cdot v)^5$$</p>
+<p><img src="/images/SISRV/untitled.png" alt="PBR sphere grid showing varying roughness and metalness" /></p>
+<h3 id="image-based-lighting-ibl">Image-Based Lighting (IBL)</h3>
+<p>The rendering equation is split into a diffuse and a specular part, each pre-computed in Phase 0:</p>
+<p>$$L_o = k_d \frac{c}{\pi} \int_\Omega L_i, n \cdot \omega_i, d\omega_i ;+; \int_\Omega \frac{DFG}{4(\omega_o \cdot n)(\omega_i \cdot n)} L_i, n \cdot \omega_i, d\omega_i$$</p>
+<ul>
+<li><strong>Diffuse IBL</strong>: the irradiance map is sampled along the surface normal.</li>
+<li><strong>Specular IBL</strong>: the pre-filter map is sampled at the mip level corresponding to the material roughness; the BRDF LUT supplies the view-dependent scale and bias. Together they implement the split-sum approximation.</li>
+</ul>
+<hr />
+<h2 id="phase-5-forward-pass">Phase 5 — Forward Pass</h2>
+<p>Objects that cannot go through deferred shading, such as the skybox and light source meshes, are rendered on top of the existing depth buffer in a standard forward pass. The <strong>skybox</strong> is drawn last, writing only to pixels not already covered by geometry, reusing the cubemap computed in Phase 0.</p>
+<p><img src="/images/SISRV/cubemaps_reflection1.png" alt="Skybox and environment map reflection on a cube" /></p>
+<hr />
+<h2 id="phase-6-bloom">Phase 6 — Bloom</h2>
+<p>Fragments whose luminance exceeds a threshold are extracted into a separate buffer, <strong>Gaussian blurred</strong> in two passes (horizontal then vertical), and additively composited back onto the main image.</p>
+<p><img src="/images/SISRV/bloom_steps.png" alt="Bloom pipeline: bright extract → blur → combine" /></p>
+<hr />
+<h2 id="phase-7-post-processing">Phase 7 — Post-processing</h2>
+<p>A final fullscreen shader applies:</p>
+<ul>
+<li><strong>Tone mapping</strong> — Reinhard or exposure-based mapping compresses HDR values into the displayable $[0, 1]$ range:</li>
+</ul>
+<p>$$\text{Col}_{rgb} = \frac{\text{Col}_{rgb}}{\text{Col}_{rgb} + 1} \qquad \text{or} \qquad \text{Col}_{rgb} = 1 - e^{-\text{exposure} \cdot \text{Col}_{rgb}}$$</p>
+<ul>
+<li><strong>Gamma correction</strong> — the result is raised to the power of $1/2.2$ to account for the non-linear response of displays:</li>
+</ul>
+<p>$$\text{Col}_{rgb} = \text{Col}_{rgb}^{1/\gamma}$$</p>
+<p><img src="/images/SISRV/gamma_correction_example.png" alt="Gamma correction and HDR tone mapping comparison" /></p>
+<hr />
+<h2 id="code-structure">Code Structure</h2>
+<p>The renderer is organised into lightweight C++ classes, each owning a specific piece of GPU state:</p>
+<table><thead><tr><th>Class</th><th>Responsibility</th></tr></thead><tbody>
+<tr><td><code>Shader</code></td><td>Compiles and links GLSL programs, uploads uniforms</td></tr>
+<tr><td><code>Model</code> / <code>Mesh</code></td><td>Loads assets via Assimp; manages VBO/EBO/VAO</td></tr>
+<tr><td><code>GBuffer</code></td><td>Owns the G-Buffer FBO and MRT textures</td></tr>
+<tr><td><code>LightingPass</code></td><td>Fullscreen quad + lighting shaders</td></tr>
+<tr><td><code>SkyBox</code></td><td>HDR → cubemap conversion, irradiance/prefilter bake</td></tr>
+<tr><td><code>ShadowMap</code></td><td>Per-light depth cubemap</td></tr>
+<tr><td><code>Scene</code></td><td>Holds objects, lights, and per-frame update logic</td></tr>
+<tr><td><code>Camera</code></td><td>View/projection matrices, WASD + mouse control</td></tr>
+</tbody></table>
+<p>The main loop in <code>main.cpp</code> wires all classes together in the order described above.</p>
+<hr />
+<h2 id="result">Result</h2>
+<p><img src="/images/SISRV/rendering1.png" alt="Final render: vase and lamp in brick room with full pipeline active" /></p>
+<p>The final scene combines all techniques: PBR materials with IBL reflections, normal and parallax mapping on the brick walls, point-light shadow maps, SSAO in the corners, and bloom on bright emissive surfaces — running in real time at interactive frame rates.</p>
+<p>You can find the full implementation here:<br />
+<a rel="external" href="https://github.com/Xoxyi/SISRV">GitHub Repository</a></p>
+
+        </article>
+    </main>
+    <footer class="footer">
+        <p class="copyright">
+            <span>© <time>2026</time></span>
+            <span>Powered by <a rel="external" href="https://www.getzola.org">Zola</a></span>
+            <span>Theme by <a rel="external" href="https://eyalkalderon.com">ebkalderon</a></span>
+        </p>
+    </footer>
+</body>
+
+</html>
