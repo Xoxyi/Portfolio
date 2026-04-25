@@ -24,7 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4   # ✅ FIXED
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive# ✅ FIXED
 
       - name: Build Zola + upload Pages artifact
         uses: getzola/github-pages@v1   # simpler + maintained
