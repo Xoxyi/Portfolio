@@ -19,7 +19,7 @@ This project helped me understand fundamentals like rays, intersections, materia
 
 ## Final Render
 
-![Final Image](/images/raytracing/final.jpg) 
+![image](../images/raytracing/final.jpg) 
 
 ## What's Next
 

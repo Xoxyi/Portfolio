@@ -17,7 +17,7 @@ SISRV is a real-time renderer built from scratch in C++ on top of **OpenGL 4.5**
 
 The implementation was developed by following the [Learn OpenGL](https://learnopengl.com/) tutorial, which provided the foundation for many of the techniques used. Some of the reference images are taken from there, while all the final renders shown here were produced by us.
 
-![Final render: a brass vase and a lamp in a brick-walled room](/images/SISRV/rendering.png)
+![image](../images/SISRV/rendering.png)
 
 The implemented features include model loading, Phong/Blinn-Phong illumination, Physically Based Rendering (PBR), sky-box with environment/irradiance/specular maps, normal mapping, parallax mapping, shadow mapping, deferred shading, instancing, SSAO, and a full post-processing stack (HDR, gamma correction, bloom).
 
@@ -27,7 +27,7 @@ The implemented features include model loading, Phong/Blinn-Phong illumination, 
 
 The diagram below summarises every stage of the pipeline assembled for this project.
 
-![Complete rendering pipeline diagram](/images/SISRV/pipeline_completa.png)
+![image](../images/SISRV/pipeline_completa.png)
 
 The pipeline is organised into four main phases: **pre-computation**, **geometry**, **lighting**, and **post-processing**. The sections below describe each stage in order of execution.
 
@@ -41,7 +41,7 @@ Before the main render loop starts, an HDR equirectangular `.hdr` image is conve
 - **Pre-filter map** — a mip-mapped specular environment map whose levels encode progressively rougher reflections (first term of the split-sum approximation).
 - **BRDF LUT** — a 2D look-up table storing the scale and bias to the Fresnel term as a function of roughness and $N \cdot V$ (second term of the split-sum approximation).
 
-![BRDF look-up texture (roughness × NdotV)](/images/SISRV/ibl_brdf_lut.png)
+![image](../images/SISRV/ibl_brdf_lut.png)
 
 These textures are computed once at startup via dedicated shaders (`equirectangular_to_cubemap.fs`, `irradiance_convolution.fs`, `prefilter.fs`, `brdf.fs`) and remain constant for the entire session.
 
@@ -53,7 +53,7 @@ For each point light in the scene a **cube shadow map** is rendered. The geometr
 
 A small **shadow bias** is added to the stored depth to avoid self-shadowing ("shadow acne").
 
-![Shadow mapping: principle diagram and rendered result](/images/SISRV/shadow_mapping_acne.png)
+![image](../images/SISRV/shadow_mapping_acne.png)
 
 ---
 
@@ -70,7 +70,7 @@ The scene is rendered once into a **G-Buffer** using deferred shading. Instead o
 
 This decouples geometry complexity from lighting complexity: adding more lights costs only one fullscreen quad pass each, not another full scene traversal.
 
-![Geometry pass → G-Buffer → Lighting pass](/images/SISRV/deferred_shading.png)
+![image](../images/SISRV/deferred_shading.png)
 
 The geometry shader supports two material workflows selected per-object:
 
@@ -83,13 +83,13 @@ Surface normals stored in a tangent-space texture are transformed into world spa
 
 $$\text{world} \\_ \text{normal} = TBN \cdot \text{texture} \\_ \text{normal}$$
 
-![Normal mapping TBN basis and result](/images/SISRV/normal_mapping.png)
+![image](../images/SISRV/normal_mapping.png)
 
 ### Parallax Mapping
 
 A height map offsets the UV coordinates along the view direction using ray-marching through depth layers, creating the illusion of geometric depth on flat surfaces.
 
-![Parallax mapping diagram and result on bricks](/images/SISRV/parallax_mapping_parallax_occlusion_mapping.png)
+![image](../images/SISRV/parallax_mapping_parallax_occlusion_mapping.png)
 
 ---
 
@@ -97,7 +97,7 @@ A height map offsets the UV coordinates along the view direction using ray-march
 
 Before lighting, **Screen-Space Ambient Occlusion** runs on the G-Buffer. 64 random samples are distributed in a hemisphere around each fragment; samples that fall behind nearby geometry contribute to a per-pixel occlusion factor. The raw SSAO buffer is then blurred to remove noise, and the result modulates the ambient term in the lighting pass.
 
-![SSAO: without vs. with, kernel diagram, and pipeline](/images/SISRV/ssao_overview.png)
+![image](../images/SISRV/ssao_overview.png)
 
 ---
 
@@ -113,7 +113,7 @@ $$D = k_d(\hat{N} \cdot \hat{L}), \qquad S = k_s(\hat{H} \cdot \hat{N})^n$$
 
 The halfway vector $\hat{H}$ replaces the reflection vector $\hat{R}$ from classic Phong, producing a more physically plausible highlight shape.
 
-![Phong vs. Blinn-Phong comparison](/images/SISRV/advanced_lighting_comparrison.png)
+![image](../images/SISRV/advanced_lighting_comparrison.png)
 
 ### PBR — Cook-Torrance BRDF
 
@@ -129,7 +129,7 @@ The specular term is composed of three functions:
 
 $$D = \frac{\alpha^2}{\pi\left((n \cdot h)^2(\alpha^2 - 1) + 1\right)^2}, \qquad F \approx F_0 + (1 - F_0)(1 - h \cdot v)^5$$
 
-![PBR sphere grid showing varying roughness and metalness](/images/SISRV/untitled.png)
+![image](../images/SISRV/untitled.png)
 
 ### Image-Based Lighting (IBL)
 
@@ -146,7 +146,7 @@ $$L_o = k_d \frac{c}{\pi} \int_\Omega L_i\, n \cdot \omega_i\, d\omega_i \;+\; \
 
 Objects that cannot go through deferred shading, such as the skybox and light source meshes, are rendered on top of the existing depth buffer in a standard forward pass. The **skybox** is drawn last, writing only to pixels not already covered by geometry, reusing the cubemap computed in Phase 0.
 
-![Skybox and environment map reflection on a cube](/images/SISRV/cubemaps_reflection1.png)
+![image](../images/SISRV/cubemaps_reflection1.png)
 
 ---
 
@@ -154,7 +154,7 @@ Objects that cannot go through deferred shading, such as the skybox and light so
 
 Fragments whose luminance exceeds a threshold are extracted into a separate buffer, **Gaussian blurred** in two passes (horizontal then vertical), and additively composited back onto the main image.
 
-![Bloom pipeline: bright extract → blur → combine](/images/SISRV/bloom_steps.png)
+![image](../images/SISRV/bloom_steps.png)
 
 ---
 
@@ -170,7 +170,7 @@ $$\text{Col}\_{rgb} = \frac{\text{Col}\_{rgb}}{\text{Col}\_{rgb} + 1} \qquad \te
 
 $$\text{Col}\_{rgb} = \text{Col}\_{rgb}^{1/\gamma}$$
 
-![Gamma correction and HDR tone mapping comparison](/images/SISRV/gamma_correction_example.png)
+![image](../images/SISRV/gamma_correction_example.png)
 
 ---
 
@@ -195,7 +195,7 @@ The main loop in `main.cpp` wires all classes together in the order described ab
 
 ## Result
 
-![Final render: vase and lamp in brick room with full pipeline active](/images/SISRV/rendering1.png)
+![image](../images/SISRV/rendering1.png)
 
 The final scene combines all techniques: PBR materials with IBL reflections, normal and parallax mapping on the brick walls, point-light shadow maps, SSAO in the corners, and bloom on bright emissive surfaces — running in real time at interactive frame rates.
 

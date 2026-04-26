@@ -120,7 +120,7 @@ With the provided notebook, it is possible to try any other pseudo-language comb
 
 Before comparing how pseudo-words behave in reducing ambiguity, it is worth examining the ambiguity of the original languages.
 
-![Number of synsets for the top 1000 words](/images/tnl/Figure_1.png)
+![image](../images/tnl/Figure_1.png)
 
 *Number of synsets for the top 1000 words in each language, ordered in non-increasing order. The pseudo-language curves (word pairs) are also shown, illustrating how much ambiguity is reduced by combining two languages.*
 
@@ -132,7 +132,7 @@ Contrary to our expectations, Italian-English exhibits greater ambiguity than It
 
 We now investigate how much the ambiguity of words is reduced when moving to pseudo-words. The graph shows the percentage of pseudo-words that achieved a given level of ambiguity reduction.
 
-![Percentage of pseudo-words achieving a given ambiguity reduction](/images/tnl/Figure_2.png)
+![image](../images/tnl/Figure_2.png)
 
 *Distribution of ambiguity reduction values across all pseudo-words, for each language pair. The x-axis represents the ambiguity reduction score (0 to 1) as defined by the formula above.*
 

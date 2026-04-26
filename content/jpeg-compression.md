@@ -25,14 +25,14 @@ The JPEG pipeline consists of several steps. The first ones prepare the image fo
 
 ### High-Level Steps
 
-![JPEG pipeline overview](/images/Jpeg/pipeline.jpg)
+![image](../images/Jpeg/pipeline.jpg)
 
 1. **Color space conversion** — we move from a raw image on three channels (Red, Green, Blue) to a representation via Luminance, Blue Chrominance, and Red Chrominance.
 2. **Subsampling** — since the human eye is more sensitive to variations in brightness than to color differences, we can subsample the Chrominance channels.
 3. **Blockify** — rather than transforming the entire image, we divide it into 8×8 pixel squares so that, statistically, each small block does not contain too many different pieces of information.
 4. **DCT** — the heart of JPEG compression. It converts the spatial representation of pixels into a frequency description. The DCT result provides the correlation of a block with the basis functions shown below, giving an indication of the frequencies that make up the block. We will return to this transform later when analyzing the differences between DCT and DFT.
 
-![DCT basis functions](/images/Jpeg/Dctjpeg.png)
+![image](../images/Jpeg/Dctjpeg.png)
 
 5. **Quantization** — setting aside Subsampling, this is the step that makes JPEG non-invertible (it is a lossy compression). The 64 values obtained from the DCT are divided by a quantization factor and rounded to the nearest integer. The quantization matrix has been carefully engineered taking into account human visual perception, seeking the best trade-off between quality and compression.
 6. **ZigZag Reordering** — due to both the DCT and quantization, the non-zero values in the 8×8 block concentrate in the upper-left corner. The ZigZag reading order is designed to create the longest possible runs of zeros.
@@ -73,7 +73,7 @@ subsample :: ImgYCbCr -> ImgYCbCr
 
 The subsampling scheme used is 4:2:0: the resolution of the chroma part of the image is halved both horizontally and vertically by averaging 2×2 pixel blocks.
 
-![4:2:0 chroma subsampling illustration](/images/Jpeg/Subsampling.png)
+![image](../images/Jpeg/Subsampling.png)
 
 Again, the `cv2` library function is used:
 
@@ -234,7 +234,7 @@ In the JPEG implementation, luminance (Y) and chrominance (Cb, Cr) are coded wit
 
 For our experiments we used 64 RAW images shot with a camera and selected to cover a sufficient variety of subjects. The image below shows a collage of all the photos used.
 
-![Collage of 64 test images](/images/Jpeg/collage.jpg)
+![image](../images/Jpeg/collage.jpg)
 
 The native resolution is 4000×6000. To test the algorithms at different resolutions, we resized each image to half its original dimensions and then to one tenth.
 
@@ -248,7 +248,7 @@ $$\text{dim} = 3 \cdot \text{width} \cdot \text{height} \quad \text{bytes}$$
 
 The compressed size is the length of the ZRLE-encoded stream, also assuming one byte per value.
 
-![ZRLE compression rate across resolutions](/images/Jpeg/compression_rate.png)
+![image](../images/Jpeg/compression_rate.png)
 
 Even in the worst case, the applied transforms compress the image by at least a factor of 10. As expected, higher-resolution images achieve better average compression ratios: the 8×8 blocks cover increasingly local regions of the image, making them more homogeneous and producing more zero-valued entries after quantization, which in turn enables stronger ZRLE compression.
 
@@ -260,7 +260,7 @@ In this experiment we consider the complete JPEG pipeline and analyze how much a
 
 The compressed file size is estimated from three components: two tables for reconstructing the Huffman tree (as described above) — four tables in total, two for luminance and two for chrominance — plus the three raw byte streams (Y, Cb, Cr). Each table entry is counted as one byte.
 
-![Huffman compression rate across resolutions](/images/Jpeg/compression_rate_huf.png)
+![image](../images/Jpeg/compression_rate_huf.png)
 
 Adding Huffman encoding yields significantly higher compression ratios than the pipeline up to ZRLE alone. This gain arises because many values in the ZRLE stream occur with high frequency and can therefore be encoded in fewer than 8 bits.
 
@@ -270,7 +270,7 @@ Adding Huffman encoding yields significantly higher compression ratios than the 
 
 In this section we ask whether the Cosine transform is genuinely more efficient than the Fourier transform. Since the JPEG quantization matrix is designed specifically for the DCT, we cannot use it directly for comparison. Instead, we use a binary matrix that retains only the upper-left values in the transformed block (corresponding to the lowest frequencies). Using the same quantization matrix for both DCT and DFT gives equal compression rates; we then compute the PSNR between the original image and the image compressed first with DCT, then with DFT, and compare the results.
 
-![PSNR comparison: DCT vs. DFT](/images/Jpeg/PSNR.png)
+![image](../images/Jpeg/PSNR.png)
 
 Regardless of the original image quality, DCT consistently achieves better PSNR than DFT. We also observed that with the binary quantization matrix, PSNR is higher than with the JPEG quantization matrix for the same transform — though compression is considerably worse. The next experiment investigates the relationship between PSNR and perceived visual quality.
 
@@ -280,21 +280,21 @@ Regardless of the original image quality, DCT consistently achieves better PSNR 
 
 As a final experiment we investigated how well PSNR reflects human visual perception. The comparison is again between DCT with the JPEG quantization matrix and DFT with the binary matrix from the previous section. The experiment aims to show that two compressions with similar PSNR values can produce perceptually very different decoded images.
 
-![Comparison image: full view](/images/Jpeg/PSNR_fig1.png)
+![image](../images/Jpeg/PSNR_fig1.png)
 
 At first glance both images look satisfactory, but close inspection reveals significant differences. The zoom below shows that fine details remain sharp in the DCT-compressed image while they are badly corrupted by the DFT compression.
 
-![Comparison image: detail zoom](/images/Jpeg/PSNR_fig1_zoom.png)
+![image](../images/Jpeg/PSNR_fig1_zoom.png)
 
 This degradation is most likely attributable to the different periodization assumptions of the two transforms, combined with the fact that the binary quantization matrix acts as a sharp ideal band-pass filter, which is known to introduce ringing and Gibbs-like distortions at edges.
 
 This raises the question: why does the DFT image score higher on PSNR despite looking worse? To investigate, we turn to an image where the difference between the two transforms is visible without zooming in.
 
-![Comparison image: homogeneous region](/images/Jpeg/PSNR_fig2.png)
+![image](../images/Jpeg/PSNR_fig2.png)
 
 Focusing on a uniform area — for instance, a single tile — makes the answer clear.
 
-![Comparison image: homogeneous region zoom](/images/Jpeg/PSNR_fig2_zoom.png)
+![image](../images/Jpeg/PSNR_fig2_zoom.png)
 
 In flat regions the DFT result looks better. Two factors explain this: first, the binary quantization matrix retains far more information; second, where there are no edges — and high frequencies are negligible — the DFT introduces no distortion, whereas the DCT image shows clear blocking artifacts from quantization. These artifacts inflate the PSNR and carry the same mathematical weight as the edge distortions introduced by DFT. Perceptually, however, these two types of artifact are weighted very differently: viewers find the edge corruption from DFT far less tolerable than the blocking from DCT.
 
