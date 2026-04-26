@@ -167,7 +167,7 @@ Experiments ran on the **hpc4ai** heterogeneous cluster, which includes:
 
 ### CUDA: GPU Cores Filling Phase
 
-![CUDA runtime when filling single GPU cores](/images/NBody/cuda_runtime_analysis_fill.png)
+![CUDA runtime when filling single GPU cores](../images/NBody/cuda_runtime_analysis_fill.png)
 
 *CUDA runtime as the number of bodies grows toward full GPU utilization (GraceHopper node, single GPU). Our implementation outperforms NVIDIA's reference up to roughly 1000 bodies, where kernel launch overhead dominates over computation. Beyond that threshold, NVIDIA's tiled memory strategy takes over.*
 
