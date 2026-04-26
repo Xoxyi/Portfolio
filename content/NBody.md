@@ -173,25 +173,25 @@ Experiments ran on the **hpc4ai** heterogeneous cluster, which includes:
 
 ### CUDA: Saturated GPU Regime
 
-![CUDA runtime with saturated GPU cores](/images/NBody/cuda_runtime_analysis_regime.png)
+![image](../images/NBody/cuda_runtime_analysis_regime.png)
 
 *Once GPU cores are fully saturated, NVIDIA's tiled approach consistently achieves lower elapsed times. The performance gap widens with N, reflecting the efficiency advantage of shared-memory data reuse in the tiled kernel over our straightforward all-pairs implementation.*
 
 ### Float vs. Double Precision
 
-![Energy conservation: float vs. double](/images/NBody/cuda_float_double.png)
+![image](../images/NBody/cuda_float_double.png)
 
 *Total energy E_tot over 100 iterations for 2¹⁶ bodies (GraceHopper, single GPU). The `float` curve drifts significantly away from the theoretical value of −0.25, while `double` remains tightly conserved after an initial transient. This confirms that double precision is essential for numerically stable N-body simulations.*
 
 ### Distributed Memory: MPI Variants Comparison
 
-![Runtime comparison of MPI approaches on Broadwell partition](/images/NBody/distrib_mem_comparison.png)
+![image](../images/NBody/distrib_mem_comparison.png)
 
 *Runtime with 2¹⁶ bodies across up to 64 Broadwell nodes. MPIv2 and MPIv3 behave nearly identically because both are bottlenecked by `MPI_Broadcast` (~7176 s), which dwarfs all other collective costs. The hybrid variant (MPIv3+OMP+AVX) breaks free of this bottleneck by combining distributed and shared memory parallelism, achieving consistently lower runtimes.*
 
 ### OpenMP vs. MPI — Strong Scalability
 
-![Strong scalability: OpenMP vs. MPI speedup](/images/NBody/shared_vs_distributed_speedup.png)
+![image](../images/NBody/shared_vs_distributed_speedup.png)
 
 *Speedup with 2¹⁶ bodies, sweeping from 2 to 64 processing units. OpenMP (Epito node, shared memory) tracks closer to the ideal linear curve than MPI (Broadwell nodes, one core each). Both fall well short of ideal, but the gap between them is driven entirely by communication cost: distributed memory synchronization is orders of magnitude more expensive than a shared-memory thread barrier.*
 
