@@ -2,7 +2,7 @@
 base_url = "https://xoxyi.github.io/Portfolio"
 
 theme = "terminus"
-title = "Xoxyi"
+title = "Xoxyi" 
 
 # Whether to automatically compile all Sass files in the sass directory
 compile_sass = true
